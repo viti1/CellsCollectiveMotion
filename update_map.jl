@@ -201,7 +201,7 @@ function update_map(r_new::Array{particle_t,1},r_cur::Array{particle_t,1},cl::Ar
                  prob = DT/div_time;
                  if rand() <  prob
                      if find_min_distance(r_new,i) > NEW_CELL_DIST
-                        if PRINT_EVERY_I @printf("dividing cell %d :  div_time = %.1f ; prob = %lf\n",i,div_time,prob) end
+                        if PRINT_TO_STDOUT @printf("dividing cell %d :  div_time = %.1f ; prob = %lf\n",i,div_time,prob) end
                         divide_cell(r_new,r_cur,i,iteration*DT)
                      end
                  end
@@ -307,23 +307,36 @@ function find_min_distance(particles::Array{particle_t,1},i::Int)
 end
 
 function divide_cell(particles::Array{particle_t,1}, particles_prev::Array{particle_t,1}, idx::Int , time)
-		origp = particles
         p = deepcopy(particles[idx]);
-		orig_p = deepcopy(particles[idx]);
         teta = rand()*2*pi;
         particles[idx].x = particles[idx].x + (NEW_CELL_DIST/2)*cos(teta)
         particles[idx].y = particles[idx].y + (NEW_CELL_DIST/2)*sin(teta)
- 
-        p.x = p.x - (NEW_CELL_DIST/2)*cos(teta);
-        p.y = p.y - (NEW_CELL_DIST/2)*sin(teta);
-        
-		update_periodic_coordinates!(particles[idx])
-		update_periodic_coordinates!(p)
-		
-		if STRIPS			
-			slide_to_borders!(p,orig_p,length(particles)+1);
-			slide_to_borders!(particles[idx],orig_p,idx);		
-		end
+        if particles[idx].y > BOARD_BORDER_Y && PERIODIC_Y
+              particles[idx].y =  particles[idx].y - BOARD_BORDER_Y
+        elseif particles[idx].y < 0 && PERIODIC_Y
+              particles[idx].y =  particles[idx].y + BOARD_BORDER_Y
+        end
+
+        if particles[idx].x > BOARD_BORDER_X && PERIODIC_X
+              particles[idx].x=  particles[idx].x - BOARD_BORDER_X
+        elseif particles[idx].x < 0 && PERIODIC_X
+              particles[idx].x =  particles[idx].x + BOARD_BORDER_X
+        end
+
+
+        p.x = p.x - 2.5*cos(teta);
+        p.y = p.y - 2.5*sin(teta);
+        if p.y > BOARD_BORDER_Y && PERIODIC_Y
+              p.y =  p.y - BOARD_BORDER_Y
+        elseif particles[idx].y < 0 && PERIODIC_Y
+              p.y =  p.y + BOARD_BORDER_Y
+        end
+
+        if p.x > BOARD_BORDER_X && PERIODIC_X
+              p.x =  p.x - BOARD_BORDER_X
+        elseif particles[idx].x < 0 && PERIODIC_X
+              p.x =  p.x + BOARD_BORDER_X
+        end
 
         push!(particles,p);
         push!(particles_prev,p); #just to enlarge the array
@@ -342,19 +355,6 @@ function divide_cell(particles::Array{particle_t,1}, particles_prev::Array{parti
         particles_prev[idx_new].nbrs = [ particles_prev[idx].nbrs ; idx ]
 end
 
-function update_periodic_coordinates!(p)
-	if p.y > BOARD_BORDER_Y && PERIODIC_Y
-              p.y =  p.y - BOARD_BORDER_Y
-	elseif p.y < 0 && PERIODIC_Y
-		  p.y =  p.y + BOARD_BORDER_Y
-	end
-
-	if p.x > BOARD_BORDER_X && PERIODIC_X
-		  p.x =  p.x - BOARD_BORDER_X
-	elseif p.x < 0 && PERIODIC_X
-		  p.x =  p.x + BOARD_BORDER_X
-	end
-end
 
 function delete_particles!(particles::Array{particle_t,1},new_p::Array{particle_t,1},
                            cl1::Array{Int,1},

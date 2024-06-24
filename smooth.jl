@@ -57,7 +57,7 @@ function gauss_smooth(arr::Array{Float64})
         return ret
 end
 
-function my_Gaussain( window, mu::Number, sigma::Number)
+function my_Gaussain( window::FloatRange{Float64}, mu::Number, sigma::Number)
     y = exp(-((window - mu).^2)/(2*sigma^2)) ;
     y = y / sum(y);
     return y;

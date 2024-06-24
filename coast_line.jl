@@ -9,12 +9,8 @@ function find_coast_line(right_side::Bool, particles::Array{particle_t,1}, itera
         max_cl_size = Y_LEN*6;
         try_num = 1;
         side = right_side ? "right" : "left"
-       # if CIRCULAR_INITIAL_LOCATION
-        #    not_cl = Int[] 
-        #else
-            not_cl = find_small_detached_groups(particles);
-        #end
-        
+        not_cl = find_small_detached_groups(particles);
+
         prev_coast_line = Int[]; # DEBUG
         while true
             i=2 ; coast_line = Int[];
@@ -48,7 +44,7 @@ function find_coast_line(right_side::Bool, particles::Array{particle_t,1}, itera
                     println("Error in coast line (max length exeeded) iteration ",iteration);
             end
 
-            if  ~CIRCULAR_INITIAL_LOCATION && is_agglomeration(particles,coast_line)  &&  try_num < 6
+            if  is_agglomeration(particles,coast_line)  &&  try_num < 6
                     inp = inpolygon(particles,coast_line);
                     pr("cl_$(side) try $(try_num): distinct group of particles size($(length(inp))) detected.")
                     pr("cline : ",coast_line', "group: ", inp')

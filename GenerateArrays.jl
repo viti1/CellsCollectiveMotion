@@ -1,7 +1,7 @@
 # generating initial arrays (r , v , eta )
 include("update_map.jl")
 
-function generate_particles_locations() # Fil Rectangle
+function generate_particles_locations()
         # -- generate location
         particles = particle_t[]
         x = 0.1*dX + ( 0:dX:dX*(X_LEN-1) )
@@ -36,24 +36,34 @@ end
 
 function generate_particles_locations1() #circle
         # -- generate location
-        particles = particle_t[]
+        R = 20*dX
+        particles = []
 
-        for x = 0:dX:CR
+        CX = 200*dX
+        CY = 200*dY
+
+        p1 = 1220
+        p2 = 1258
+
+        for x = 0:dX:R
              y = 0.0 ;
-             while ( x^2+(y - 0.5*dY)^2 <= CR^2)
-                if x^2+( y + 0.5*dY)^2 > CR^2  # next y
-                        y1 = sqrt(CR^2 - x^2)
+             while ( x^2+(y - 0.5*dY)^2 <= R^2)
+                if x^2+( y + 0.5*dY)^2 > R^2  # next y
+                        y1 = sqrt(R^2 - x^2)
                 else
                         y1 = y
                 end
 
-                if x == CR-dX
-                        x1 = sqrt(CR^2 - y1^2)
+                if x == R-dX
+                        x1 = sqrt(R^2 - y1^2)
                 else
                         x1 = x
                 end
 
-               
+                if length(particles)+1 == p1 || length(particles)+1 == p2
+                    y1 -= 2
+                    x1 = sqrt( R^2 - y1^2)
+                end
 
                 push!(particles, particle_t(x1 + CX , y1 + CY  ,[0.0,0.0],[0.0,0.0],Int[] ,Float64[],0.0 ) )
 
@@ -182,11 +192,7 @@ function initialize_arrays(start_from_last,path)
                 r_vec = read_particles(path)
         else
                 println(" -- gen  location ---- ")
-				if CIRCULAR_INITIAL_LOCATION
-					r_vec = generate_particles_locations1();
-				else
-                	r_vec = generate_particles_locations();
-				end
+                r_vec = generate_particles_locations();
         end
 
         r_vec_new = deepcopy(r_vec);

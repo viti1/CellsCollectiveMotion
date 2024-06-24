@@ -1,3 +1,0 @@
-/PRINT_STEP/ { print "PRINT_STEP = "print_step";" ; next  }
-/NUM_OF_CYCLES/ { print "NUM_OF_CYCLES = "n";" ; next }
-1

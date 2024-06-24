@@ -10,7 +10,7 @@ include("coast_line.jl")
         cline_r = Int[]; cline_l = Int[]; to_delete2 = Int[];
         (frc_files,pos_files,cl_files) = open_all_files();
 
-        if iter%PRINT_STEP==0 && PRINT_EVERY_I; print("----- Iteration 1 -") end
+        if iter%PRINT_STEP==0 && PRINT_TO_STDOUT; print("----- Iteration 1 --") end
         ( r_cur, r_new ) = initialize_arrays(start_from_last,directory);
 
         if iter%PRINT_STEP==0; print_particles_array(r_cur, P1 ,pos_files); end
@@ -21,7 +21,7 @@ include("coast_line.jl")
 
         iter=2
         while ( iter <= NUM_OF_CYCLES )
-            if iter%PRINT_STEP==0 && PRINT_EVERY_I pr("----- Iteration $(iter) ($(iter/PRINT_STEP))---- DIR = $(directory[11:end]) ") end
+            if iter%PRINT_STEP==0 && PRINT_TO_STDOUT pr("----- Iteration $(iter) ($(iter/PRINT_STEP))---- DIR = $(directory[11:end]) ") end
 
             delete_particles!(r_cur,r_new,cline_r,cline_l,[to_delete1; to_delete2]) #detected in find_coast_line
             cells_movement!(r_cur, r_new,

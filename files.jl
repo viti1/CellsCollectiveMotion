@@ -41,25 +41,23 @@ function open_force_files()
         end
 
         #  == all forces==
-        Ffric_file_x    = open("$(directory)Ffricx.txt"    , "w")  	#1
-        Ffric_file_y    = open("$(directory)Ffricy.txt"    , "w")  	#2
-        Fvicsek_file_x  = open("$(directory)Fvicsekx.txt"  , "w")  	#3
-        Fvicsek_file_y  = open("$(directory)Fvicseky.txt"  , "w")  	#4
-        FU_file_x       = open("$(directory)FUx.txt"       , "w")  	#5
-        FU_file_y       = open("$(directory)FUy.txt"       , "w")  	#6
-        Fnoise_file_x   = open("$(directory)Fnoisex.txt"   , "w")  	#7
-        Fnoise_file_y   = open("$(directory)Fnoisey.txt"   , "w")  	#8
-		Fwall_file_x   	= open("$(directory)Fwallx.txt"    , "w")  	#9
-		Fwall_file_y   	= open("$(directory)Fwally.txt"    , "w")  	#10
+        Ffric_file_x    = open("$(directory)Ffricx.txt"    , "w")  #1
+        Ffric_file_y    = open("$(directory)Ffricy.txt"    , "w")  #2
+        Fvicsek_file_x  = open("$(directory)Fvicsekx.txt"  , "w")  #3
+        Fvicsek_file_y  = open("$(directory)Fvicseky.txt"  , "w")  #4
+        FU_file_x       = open("$(directory)FUx.txt"       , "w")  #5
+        FU_file_y       = open("$(directory)FUy.txt"       , "w")  #6
+        Fnoise_file_x   = open("$(directory)Fnoisex.txt"   , "w")  #7
+        Fnoise_file_y   = open("$(directory)Fnoisey.txt"   , "w")  #8
 
-        frc_files_bulk = [ Ffric_file_x , Ffric_file_y,     # 1,2
-                           Fvicsek_file_x, Fvicsek_file_y, 	# 3,4
-                           FU_file_x, FU_file_y,           	# 5,6
-                           Fnoise_file_x, Fnoise_file_y ,    	# 7,8
-						   Fwall_file_x, Fwall_file_y     	# 9,10
-                         ]
+        frc_files_bulk = [ Ffric_file_x , Ffric_file_y,      # 1,2
+                          Fvicsek_file_x, Fvicsek_file_y,    # 3,4
+                          FU_file_x, FU_file_y,             # 5,6
+                          Fnoise_file_x, Fnoise_file_y     # 7,8
+                        ]
 
         # == cline forces - right side ==
+
 
         Fresx_file_r = open("$(directory)Fresx_r.txt"    , "w")
         Fresy_file_r = open("$(directory)Fresy_r.txt"    , "w")

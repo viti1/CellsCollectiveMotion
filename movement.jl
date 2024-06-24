@@ -47,55 +47,6 @@ function stencil_add_x_left_border_force!( p::particle_t , F::Array{Float64,1} )
         end
 end
 
-function wall_attractive_force(r_cur::particle_t)
-	if isnan(r_cur.x) || isnan(r_cur.x)
-		println("wall_attractive_force: NaN coordinates ")
-	end
-	
-	rvec = [r_cur.x ; r_cur.y];
-	for j=1:length(WALLS)
-		w = WALLS[j].p2 - WALLS[j].p1 ; # wall vector
-		v = rvec-WALLS[j].p1;           # vector from first point of the wall to the cell needed in order to calculate distance to the wall)
-		svdot = dot(v,w);
-		if  svdot > 0 && svdot < dot(w,w) 
-			l_vector = svdot/dot(w,w)*w - v ;
-			l_dist = norm(l_vector); # distance from the wall 
-			if l_dist < WALLS[j].d && l_dist > 0
-				F = WALL_FORCE*l_vector/l_dist; 
-				if any(isnan(F))
-					pr("l_vector : " , l_vector')
-					pr("w : " , w')
-					pr("v : " , v')
-					v';
-				end
-				return F;
-			end
-		end
-	end
-
-	
-	for j=1:length(CORNERS)
-		if is_in_corner_force_influence(r_cur,CORNERS[j])
-			l_vector = [CORNERS[j].x ; CORNERS[j].y] - rvec;  # vector from the cell to the corner circle center
-			l_dist = norm(l_vector); # distance from the wall 
-			if l_dist < CORNERS[j].r + CORNERS[j].d && l_dist > CORNERS[j].r
-				F = WALL_FORCE*l_vector/l_dist; 
-				if any(isnan(F))
-					pr("l_vector : " , l_vector')
-					pr("w : " , w')
-					pr("v : " , v')
-					v';
-				end
-
-				return F;
-			end
-		end
-	end
-	
-	F = [0.0 ; 0.0]
-	return F;
-end
-
 function calc_curvature(particles, cl)
         #check
         if length(cl) < 3
@@ -143,15 +94,11 @@ function calc_curvature(particles, cl)
 
 
         if STRIPS
-			half_channel = (BOARD_BORDER_X + CHANNEL_LENGTH/2);
-		
-           	outside_strip = collect(cl_y .< STRIPS_BORDERS[1,1])  & collect(cl_x .< half_channel) ;
-
-			for j=1:size(STRIPS_BORDERS,1)-1
-               outside_strip =  outside_strip | ( ( collect(cl_y .> STRIPS_BORDERS[j,2]) & collect(cl_y .< STRIPS_BORDERS[j+1,1]) ) & collect(cl_x .< half_channel) ); 
-           	end
-			outside_strip = outside_strip | ( collect(cl_y .> STRIPS_BORDERS[end,2])  & collect(cl_x .< half_channel ) );
-		
+           inside_strip = falses(length(cl))
+           for j=1:size(STRIPS_BORDERS,1)
+               inside_strip =  inside_strip | ( collect(cl_y .>= STRIPS_BORDERS[j,1]) & collect(cl_y .<= STRIPS_BORDERS[j,2]) );
+           end
+           outside_strip = !inside_strip;
            H_abs[outside_strip] = 0;
            H[outside_strip,:] = 0 ;
         end
@@ -210,7 +157,6 @@ function ds_double_derivative( arr::Array{Float64}, ds::Array{Float64,1} )
     return second_der
 end
 
-
 function restoring_force(cl::Array{Int,1},H::Array{Float64,2}, ddH::Array{Float64,2} )
     H_abs2 = H[:,1].^2 + H[:,2].^2;
     ret = ( - 3/2*F_KAPPA*H_abs2.*H - F_KAPPA*ddH );
@@ -221,7 +167,6 @@ function restoring_force(cl::Array{Int,1},H::Array{Float64,2}, ddH::Array{Float6
       end
     end
     return ret'
-	ret'
 end
 
 function Fcell_force(cl::Array{Int,1}, H::Array{Float64,2}, H_mod::Array{Float64,1})
@@ -247,14 +192,12 @@ function Fcell_force(cl::Array{Int,1}, H::Array{Float64,2}, H_mod::Array{Float64
         end
     end
     return ret';
-	ret'
 end
-
 
 function Fcord_force(H_mod::Array{Float64,1},t::Array{Float64,2},cline::Array{Int,1},particles::Array{particle_t,1})
         f_cord =zeros(size(t))
         if ~CORDS
-            return f_cord' ;				
+                return f_cord'
         end
 
         len = length(H_mod);
@@ -312,7 +255,7 @@ function Fcord_force(H_mod::Array{Float64,1},t::Array{Float64,2},cline::Array{In
              end
         end
 
-        return f_cord';  # array of 2D vectors
+        return f_cord'; # array of 2D vectors
 end
 
 #  =========================== VICSEK MOVEMENT ==========================================
@@ -335,10 +278,9 @@ function cells_movement!(r_cur::Array{particle_t,1},
         fij         = Array(Float64,2);
         f_interaction = Array(Float64,2);
         f_stencil   = Array(Float64,2);
-        #f_friction  = Array(Float64,2);
-        #f_noise     = Array(Float64,2);
-        #f_vicsek    = zeros(2); 
-		Hmodr=Float64[]; Hmodl=Float64[];
+        f_friction  = Array(Float64,2);
+        f_noise     = Array(Float64,2);
+        f_vicsek    = zeros(2); Hmodr=Float64[]; Hmodl=Float64[];
         # ---- calculate cline forces --------------------
 
         if  ~isempty(cline_r)
@@ -388,24 +330,17 @@ function cells_movement!(r_cur::Array{particle_t,1},
 
         # ~~~~~~~~|  LOOP over All Particles |~~~~~~~~~
         #``````````````````````````````````````````````
-
         for ip = 1:length(r_cur)
                 p_cur = r_cur[ip];
                 p_new = r_new[ip];
 				
 				# -----  f1 - friction force --------------------------------------
                 f_friction[:] = -ALPHA*p_cur.v;
-				
+
                 # -----  f2 - sum of (Vj-Vi) where j is the n.n. of p[i] ----------
                 sum_dv[:] = 0;
-				if iteration == 200 && ip > 20 && ip < 30
-							println("i_particle = ",ip, " V= " , p_cur.v) 
-						end
                 for n_idx in p_cur.nbrs
-						if iteration == 200 && ip > 20 && ip < 30
-							println("dv = ",r_cur[n_idx].v - p_cur.v) 
-						end
-                        sum_dv += ( r_cur[n_idx].v - p_cur.v );
+                        sum_dv += ( r_cur[n_idx].v - p_cur.v);
                 end
 
                 if ( !isempty(p_cur.nbrs))
@@ -422,39 +357,29 @@ function cells_movement!(r_cur::Array{particle_t,1},
                 end
 
                 # -----  f4 - random noise -------------------------
-				# p_new.eta is actually the eta one iteration before p_cur.
+				# This one is not the best writing. p_new.eta is actually the eta one iteration before p_cur.
 				eta_old = p_new.eta;
                 f_noise[:] = ( SIGMA0+(SIGMA1-SIGMA0)*(1-p_cur.rho/RHO0) ) * eta_old;
                 p_new.eta[:] = p_cur.eta + dt_divtau*(-p_cur.eta + Noise_Coeff * randn(2));
 
                 # ---  f5 - stencil force --------
                 f_stencil[:] = 0;
-                if TWO_P
+                if TWO_PARTICLES
                     stencil_circle_force(p_cur, f_stencil);
                 else
                     # right stencil
-                    if  ( iteration < THERMALIZATION_TIME || BOX ) && !PERIODIC_X && !NO_BORDERS
+                    if  ( iteration < THERMALIZATION_TIME || BOX ) && !PERIODIC_X 
                             stencil_add_x_right_border_force!(p_cur, f_stencil);
                     end
 
                     # left stencil
-                    if ( !TWO_SIDED || iteration < THERMALIZATION_TIME || BOX ) && !PERIODIC_X && !NO_BORDERS
+                    if ( !TWO_SIDED || iteration < THERMALIZATION_TIME || BOX ) && !PERIODIC_X 
                             stencil_add_x_left_border_force!(p_cur, f_stencil);
                     end
                 end
 
-				# ---  f6 - walls attractive force --------
-				f_wall = wall_attractive_force(p_cur);
-				
-				# if f_wall[1] !=0 || f_wall[1] !=0
-					# pr("i=",iteration,"  f_wall= ",f_wall')
-					# iteration'
-				# end
-		
-		
                 # ---- calc new velocity ----
-				
-                p_new.v[:] = p_cur.v + DT*( f_friction + f_interaction + f_vicsek + f_noise + f_stencil + f_wall) ;
+                p_new.v[:] = p_cur.v + DT*( f_friction + f_interaction + f_vicsek + f_noise + f_stencil ) ;
                 icl = findfirst(ip.==cline_r)
                 if icl > 0 # if i in cline right
                      p_new.v += ( Fres_r[:,icl] + Fcell_r[:,icl] + Fcord_r[:,icl] ) * DT
@@ -492,18 +417,18 @@ function cells_movement!(r_cur::Array{particle_t,1},
                     end
                 end
 
-                if STRIPS || GRADUAL_STRIP; slide_to_borders!(p_new,p_cur,ip); end
-				
+                if STRIPS slide_to_borders!(p_new,p_cur); end
+                if GRADUAL_STRIP slide_to_gradual_borders!(p_new,p_cur); end
                 # --- print all forces -----------
                 if print_iter
-                   print_bulk_forces_of_particle(f_files_bulk,f_friction, f_vicsek, f_interaction,f_noise,f_wall  )
+                   print_bulk_forces_of_particle(f_files_bulk,f_friction, f_vicsek, f_interaction,f_noise  )
                 end
 
                 # --- check x and v isnan ------
                 if  isnan(p_new.v[1]) || isnan(p_new.v[2])
                         println("V[$ip] = ",p_new.v)
 
-                        print_bulk_forces_of_particle(f_friction, f_vicsek, f_interaction,f_noise,f_wall )
+                        print_bulk_forces_of_particle(f_friction, f_vicsek, f_interaction,f_noise )
                         if  ~isempty(cline_r)
                               print_cl_forces_of_particle( ip,cline_r, Fres_r, Fcell_r, Fcord_r,"Right" )
                         end
@@ -536,157 +461,61 @@ function checkinput(ip::Int, p::particle_t, s::ASCIIString)
         if isnan(p.y) || isinf(p.y) pr("checkinput: r_$s[$ip].y = ",p.y ) end
 end
 
-function slide_to_borders!(particle::particle_t, old_particle::particle_t,ptcl_id::Int64)
-	particle_bu = deepcopy(particle);
-	was_slide = false;
-	
-	# update coordinates
-	if STRIPS
-		was_slide = slide_to_borders_coordinate!(particle, old_particle);
-	end
-	
-	if GRADUAL_STRIP
-		was_slide = slide_to_gradual_borders_coordinates!(particle, old_particle);
-	end
-	
-	# update velocity
-	was_slide2 = particle_bu.x != particle.x || particle_bu.y !=  particle.y;
-	if was_slide != was_slide2
-		println("pid = ",ptcl_id ,": was_slide != was_slide2 " , was_slide, " != ", was_slide2)
-	
-		if particle_bu.x != particle.x
-			println(" old.x = " ,particle_bu.x, "new_x = " ,particle.x)
-		end
-		
-		if particle_bu.y != particle.y
-			println(" old.y = " ,particle_bu.y, "new_y = " ,particle.y)
-		end
-	end
-	
-	if was_slide
-		dx = particle.x - old_particle.x ;
-		dy = particle.y - old_particle.y ;        
 
-        if ( PERIODIC_Y && abs(dy) > HALF_BOARD_BORDER_Y )
-			if dy > 0							
-                dy = dy - BOARD_BORDER_Y ;
-			else
-				dy = dy + BOARD_BORDER_Y ;
-			end
-        end
-
-        if ( PERIODIC_X && abs(dx) > HALF_BOARD_BORDER_X )
-             if dx > 0							
-                dx = dx - BOARD_BORDER_X ;
-			else
-				dx = dx + BOARD_BORDER_X ;
-			end
-        end	
-
-		if abs(dy) > 6
-			pr("abs(dy) > 6  : ", dy , " y_old=",old_particle.y, "  y_new=" , particle.y, "  x_old=",old_particle.x, "  x_new=" , particle.x)
-		end
-		
-		if abs(dx) > 6
-			pr("abs(dx) > 6: " , dx , "x_old=",old_particle.x, "x_new" , particle.x)
-		end
-		
-		particle.v[1] = dx/DT;
-		particle.v[2] = dy/DT
-	end
-		
-end
-
-function slide_to_borders_coordinate!(particle::particle_t, old_particle::particle_t)
-	end_of_strip = BOARD_BORDER_X + CHANNEL_LENGTH;
-	
-    if particle.x <= BOARD_BORDER_X || particle.x >= end_of_strip
-      return false
+function slide_to_borders!(particle::particle_t, old_particle::particle_t)
+    if particle.x < BOARD_BORDER_X
+      return
     end
 
-	particle_bu = deepcopy(particle);
-	for i = 1:length(CORNERS)
-		if is_in_corner(particle,CORNERS[i]) 
-			#println("in corner " , i ,  " : (x,y) = (",particle.x,",",particle.y,")")
-			dist_to_corner =  dist_to_corner_center(particle,CORNERS[i]) 
-			if dist_to_corner < CORNERS[i].r
-				# slide to the closest point on the circle
-				# Pnew = (P - O)/|P-O| * R     dist_to_corner = |P-0|
-				particle.x = CORNERS[i].x + ( particle.x - CORNERS[i].x )/ dist_to_corner  * CORNERS[i].r ;
-				particle.y = CORNERS[i].y + ( particle.y - CORNERS[i].y )/ dist_to_corner  * CORNERS[i].r ;
-				
-				# println("slide from corner: old(x,y) = ( ",particle_bu.x,",",particle_bu.y,") new(x,y) = (",particle.x,",",particle.y,")")
-				return true;
-			else
-				return false;
-			end
-		end		
-	end
-	
-    if particle.y < STRIPS_BORDERS[1,1] 
+    if particle.y<STRIPS_BORDERS[1,1]
         if old_particle.x <= BOARD_BORDER_X
                 particle.x =  BOARD_BORDER_X-0.1
-        elseif old_particle.x >= end_of_strip
-                particle.x =  end_of_strip+0.1
-						
         else
                 particle.y =  STRIPS_BORDERS[1,1]
-				# println("slide A")
         end
-		
-        return true
+        return
     end
 
     for j=1:size(STRIPS_BORDERS,1)-1
          if particle.y <= STRIPS_BORDERS[j,2]
-            return false
+            return
          end
 
          if  particle.y <= STRIPS_BORDERS[j+1,1] # => particle outside strip
 
             if old_particle.x <= BOARD_BORDER_X
-                particle.x =  BOARD_BORDER_X - 0.1
-            elseif old_particle.x >= end_of_strip
-                particle.x =  end_of_strip+0.1
+                 particle.x =  BOARD_BORDER_X - 0.1
             else
 
                 if STRIPS_BORDERS[j+1,1] - particle.y < particle.y - STRIPS_BORDERS[j,2]
                     particle.y = STRIPS_BORDERS[j+1,1]
-					println("slide B")
                 else
                     particle.y = STRIPS_BORDERS[j,2]
-					# println("slide C")
                 end
 
             end
-				
-            return true
+            return
          end
     end
 
     if particle.y > STRIPS_BORDERS[end,2]
-          if old_particle.x <= BOARD_BORDER_X
-                particle.x =  BOARD_BORDER_X-0.1
-          elseif old_particle.x >= end_of_strip
-                particle.x =  end_of_strip+0.1
+          if old_particle.x < BOARD_BORDER_X
+                  particle.x =  BOARD_BORDER_X -0.1
           else
-                particle.y =  STRIPS_BORDERS[end,2]
-				# println("slide D")
+                  particle.y =  STRIPS_BORDERS[end,2]
           end
-
-          return true
+          return
     end
-	return false
 end
 
-function slide_to_gradual_borders_coordinates!(particle::particle_t, old_particle::particle_t)
+function slide_to_gradual_borders!(particle::particle_t, old_particle::particle_t)
    # if behind start line
    if particle.x <= BOARD_BORDER_X
-      return false
+      return
     end
 
     y_curr_border  = STRIPS_BORDERS[1,1:2] +  [1 -1]*STRIP_SLOPE*(particle.x - BOARD_BORDER_X)
-	#println("slide_to_gradual_borders: y_curr_border = ",y_curr_border)
+#println("slide_to_gradual_borders: y_curr_border = ",y_curr_border)
 
     #region1 - under the strip
     if particle.y < y_curr_border[1]
@@ -695,7 +524,6 @@ function slide_to_gradual_borders_coordinates!(particle::particle_t, old_particl
         else
                 particle.y =  y_curr_border[1]
         end
-		return true
     end
 
   # region3 - above the  strip
@@ -705,60 +533,12 @@ function slide_to_gradual_borders_coordinates!(particle::particle_t, old_particl
         else
               particle.y = y_curr_border[2];
         end
-		return true
     end
 
-	return false
-end
+  # update velocity
+  particle.v[1] = ( particle.x - old_particle.x )/DT;
+  particle.v[2] = ( particle.y - old_particle.y )/DT;
 
-function dist_to_corner_center(p::particle_t,corner::corner_t)
-	return sqrt( ( p.x - corner.x)^2 + ( p.y - corner.y)^2 ) 
-end
-
-function  is_in_corner(p::particle_t,corner::corner_t)
-	# if (P - O1) and (P - O2) has the opposite sign -> P is between O1 and O2
-	
-	# x1 = corner.x ; x2 = corner.xsign*corner.r + corner.x;
-	# y1 = corner.y ; y2 = corner.ysign*corner.r + corner.y;
-	# result2 =  (( p.x > x1 &&  p.x < x2 ) ||  ( p.x < x1 &&  p.x > x2 )) &&
-			# (( p.y > y1 &&  p.y < y2 ) ||  ( p.y < y1 &&  p.y > y2 ))
-	
-	result = ( ( p.x - corner.x )* ( p.x - (corner.xsign*corner.r + corner.x) ) < 0 && 
-	          ( p.y - corner.y )* ( p.y - (corner.ysign*corner.r + corner.y) ) < 0     );
-			  # if result
-				# println(" (corner.xsign*corner.r + corner.x) = " ,  (corner.xsign*corner.r + corner.x));
-				# println(" (corner.ysign*corner.r + corner.y) = " ,  (corner.ysign*corner.r + corner.y));
-				# println("particle(x,y) = (" , p.x, "," , p.y,")")
-				# exit()
-			  # end		
-			
-	# if result !=result2
-		# println("result1 !=result2 : " ,result1 , " != " ,result2 )
-	# end			
-	return 	result	
-end
-
-function  is_in_corner_force_influence(p::particle_t,corner::corner_t)
-	# if (P - O1) and (P - O2) has the opposite sign -> P is between O1 and O2
-	
-	# x1 = corner.x ; x2 = corner.xsign*corner.r + corner.x;
-	# y1 = corner.y ; y2 = corner.ysign*corner.r + corner.y;
-	# result2 =  (( p.x > x1 &&  p.x < x2 ) ||  ( p.x < x1 &&  p.x > x2 )) &&
-			# (( p.y > y1 &&  p.y < y2 ) ||  ( p.y < y1 &&  p.y > y2 ))
-	
-	result = ( ( p.x - corner.x )* ( p.x - (corner.xsign*corner.d + corner.x) ) < 0 && 
-	          ( p.y - corner.y )* ( p.y - (corner.ysign*corner.d + corner.y) ) < 0     );
-			  # if result
-				# println(" (corner.xsign*corner.r + corner.x) = " ,  (corner.xsign*corner.r + corner.x));
-				# println(" (corner.ysign*corner.r + corner.y) = " ,  (corner.ysign*corner.r + corner.y));
-				# println("particle(x,y) = (" , p.x, "," , p.y,")")
-				# exit()
-			  # end		
-			
-	# if result !=result2
-		# println("result1 !=result2 : " ,result1 , " != " ,result2 )
-	# end			
-	return 	result	
 end
 
 
@@ -779,4 +559,3 @@ function init_arrays_2D_to_zero(NumOfArrays,arrLength)
 
     return tuple(a...)
 end
-

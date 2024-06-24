@@ -136,9 +136,8 @@ function print_bulk_forces_of_particle( files::Array{IOStream,1},
                             f_friction::Array{Float64} ,
                             f_vicsek::Array{Float64} ,
                             f_interaction::Array{Float64},
-                            f_noise::Array{Float64},
-							f_wall::Array{Float64}	)						
-    if !PRINT_FORCE; return; end
+                            f_noise::Array{Float64} )
+    if !PRINT_FORCE return end
     print(files[1], f_friction[1]    ,'\t')
     print(files[2], f_friction[2]    ,'\t')
     print(files[3], f_vicsek[1]      ,'\t')
@@ -147,16 +146,12 @@ function print_bulk_forces_of_particle( files::Array{IOStream,1},
     print(files[6], f_interaction[2] ,'\t')
     print(files[7], f_noise[1]       ,'\t')
     print(files[8], f_noise[2]       ,'\t')
-	print(files[9], f_wall[1]       ,'\t')
-    print(files[10] , f_wall[2]       ,'\t')
-
 end
 
 function print_bulk_forces_of_particle(  f_friction::Array{Float64} ,
                             f_vicsek::Array{Float64},
                             f_interaction::Array{Float64},
-                            f_noise::Array{Float64},
-							f_wall::Array{Float64}
+                            f_noise::Array{Float64}
                          )
 
         println("~~~ The Forces are ~~    ");
@@ -164,7 +159,6 @@ function print_bulk_forces_of_particle(  f_friction::Array{Float64} ,
         println("\tVicsek     : " , f_vicsek')
         println("\tInteraction: ", f_interaction')
         println("\tNoise      : ", f_noise')
-		println("\tWall      : ", f_wall')
 end
 
 function print_new_line_to_files(files::Array{IOStream,1})
